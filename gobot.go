@@ -63,7 +63,7 @@ func main() {
 	re := regexp.MustCompile("(@.*?)\\s")
 	re_name := regexp.MustCompile("\\*name\\*")
 	client := hipchat.NewClient(config.HipchatAuthToken)
-	last_message_recieved := time.Now().Format("2006-01-02T15:04:05Z07:00")
+	last_message_recieved := time.Now()
 
 	fmt.Println("Gobot running ctrl+c exits")
 
@@ -81,8 +81,7 @@ func main() {
 			//when initiall firing up the script start date is beginning of the day
 
 			history, response, error :=
-				client.Room.History(room, &hipchat.HistoryRequest{Date: last_message_recieved,
-					Timezone: "UTC"})
+				client.Room.History(room, &hipchat.HistoryRequest{Date: "recent"})
 
 			if error != nil {
 				fmt.Printf("Error during room history req %q\n", error)
@@ -94,78 +93,86 @@ func main() {
 			for _, m := range history.Items {
 				from := ""
 				message_directed_at_bot := false
+				message_time_parsed, _ := time.Parse("2006-01-02T15:04:05Z07:00", m.Date)
 
-				switch m.From.(type) {
-				case string:
-					from = m.From.(string)
-				case map[string]interface{}:
-					f := m.From.(map[string]interface{})
-					from = f["mention_name"].(string)
-				}
+				if message_time_parsed.After(last_message_recieved) {
 
-				if m.Mentions != nil {
-					for _, mention := range m.Mentions {
-						if mention.MentionName == config.Botname {
-							message_directed_at_bot = true
+					switch m.From.(type) {
+					case string:
+						from = m.From.(string)
+					case map[string]interface{}:
+						f := m.From.(map[string]interface{})
+						from = f["mention_name"].(string)
+					}
+
+					if m.Mentions != nil {
+						for _, mention := range m.Mentions {
+							if mention.MentionName == config.Botname {
+								message_directed_at_bot = true
+							}
 						}
 					}
-				}
 
-				if message_directed_at_bot {
-					command := re.ReplaceAllString(m.Message, "")
-					script_to_execute := ""
-					user_has_permissions := false
+					if message_directed_at_bot {
+						command := re.ReplaceAllString(m.Message, "")
+						script_to_execute := ""
+						user_has_permissions := false
 
-					//command needs to be split into command and variable number of arguments
+						//command needs to be split into command and variable number of arguments
 
-					if command == "help" {
-						fmt.Println("Help message")
-					} else {
-						for _, script := range config.Scripts {
-							if command == script.Name {
-								script_to_execute = script.Path
-
-								for _, user := range script.PermittedUsers {
-									if user == "all" || user == from {
-										user_has_permissions = true
-									}
-								}
-
-							}
-						}
-
-						if len(script_to_execute) > 0 && user_has_permissions {
-							cmd := exec.Command(script_to_execute + " &")
-							error := cmd.Start()
-
-							//output script error into hipchat
-
-							if error != nil {
-								client.Room.Notification(room,
-									&hipchat.NotificationRequest{Color: "red",
-										Message: "@" + from + " " + command + " failed to execute.",
-										Notify:  true, MessageFormat: "text"})
-								message = "@" + from + " " + command + " failed to execute."
-							}
-
+						if command == "help" {
+							fmt.Println("Help message")
+						} else if command == "ping" {
+							client.Room.Notification(room,
+								&hipchat.NotificationRequest{Message: "@"+from+" pong",
+									MessageFormat: "text"})
 						} else {
+							for _, script := range config.Scripts {
+								if command == script.Name {
+									script_to_execute = script.Path
+
+									for _, user := range script.PermittedUsers {
+										if user == "all" || user == from {
+											user_has_permissions = true
+										}
+									}
+
+								}
+							}
+
 							message := ""
 
-							if len(script_to_execute) > 0 {
-								message = re_name.ReplaceAllString(config.NoAuthMessage, "@"+from)
-							} else {
-								message = re_name.ReplaceAllString(config.UnknownCommand, "@"+from)
-							}
+							if len(script_to_execute) > 0 && user_has_permissions {
+								cmd := exec.Command(script_to_execute + " &")
+								error := cmd.Start()
 
-							client.Room.Notification(room,
-								&hipchat.NotificationRequest{Color: "red", Message: message,
-									Notify: true, MessageFormat: "text"})
+								//output script error into hipchat
+
+								if error != nil {
+									client.Room.Notification(room,
+										&hipchat.NotificationRequest{Color: "red",
+											Message: "@" + from + " " + command + " failed to execute.",
+											Notify:  true, MessageFormat: "text"})
+									message = "@" + from + " " + command + " failed to execute."
+								}
+
+							} else {
+								if len(script_to_execute) > 0 {
+									message = re_name.ReplaceAllString(config.NoAuthMessage, "@"+from)
+								} else {
+									message = re_name.ReplaceAllString(config.UnknownCommand, "@"+from)
+								}
+
+								client.Room.Notification(room,
+									&hipchat.NotificationRequest{Color: "red", Message: message,
+										Notify: true, MessageFormat: "text"})
+							}
 						}
 					}
+
+					last_message_recieved = message_time_parsed
+
 				}
-
-				last_message_recieved = m.Date
-
 			}
 
 		}
