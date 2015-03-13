@@ -19,11 +19,13 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/tbruyelle/hipchat-go/hipchat"
 	"os"
 	"os/exec"
 	"regexp"
+	"strings"
 	"time"
+
+	"github.com/tbruyelle/hipchat-go/hipchat"
 )
 
 var config struct {
@@ -71,15 +73,6 @@ func main() {
 
 		for _, room := range config.RoomNames {
 
-			//fmt.Println("LAST MESSAGE RECIEVED")
-			//fmt.Println(last_message_recieved)
-
-			//2015-03-13T10:05:59.075615+00:00
-			//2015-03-13T10:05:59.075615+00:00
-
-			//add 1 second to last date retrived from room then write to an array on second loop through use that date
-			//when initiall firing up the script start date is beginning of the day
-
 			history, response, error :=
 				client.Room.History(room, &hipchat.HistoryRequest{Date: "recent"})
 
@@ -114,21 +107,19 @@ func main() {
 					}
 
 					if message_directed_at_bot {
-						command := re.ReplaceAllString(m.Message, "")
+						command := strings.Fields(re.ReplaceAllString(m.Message, ""))
 						script_to_execute := ""
 						user_has_permissions := false
 
-						//command needs to be split into command and variable number of arguments
-
-						if command == "help" {
+						if command[0] == "help" {
 							fmt.Println("Help message")
-						} else if command == "ping" {
+						} else if command[0] == "ping" {
 							client.Room.Notification(room,
-								&hipchat.NotificationRequest{Message: "@"+from+" pong",
+								&hipchat.NotificationRequest{Message: "@" + from + " pong",
 									MessageFormat: "text"})
 						} else {
 							for _, script := range config.Scripts {
-								if command == script.Name {
+								if command[0] == script.Name {
 									script_to_execute = script.Path
 
 									for _, user := range script.PermittedUsers {
@@ -136,14 +127,14 @@ func main() {
 											user_has_permissions = true
 										}
 									}
-
 								}
 							}
 
 							message := ""
 
 							if len(script_to_execute) > 0 && user_has_permissions {
-								cmd := exec.Command(script_to_execute + " &")
+								command = append(command[1:len(command)], "&")
+								cmd := exec.Command(script_to_execute, command...)
 								error := cmd.Start()
 
 								//output script error into hipchat
@@ -151,9 +142,9 @@ func main() {
 								if error != nil {
 									client.Room.Notification(room,
 										&hipchat.NotificationRequest{Color: "red",
-											Message: "@" + from + " " + command + " failed to execute.",
+											Message: "@" + from + " " + command[0] + " failed to execute.",
 											Notify:  true, MessageFormat: "text"})
-									message = "@" + from + " " + command + " failed to execute."
+									message = "@" + from + " " + command[0] + " failed to execute."
 								}
 
 							} else {
