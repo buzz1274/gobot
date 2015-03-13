@@ -1,0 +1,13 @@
+{"hipchat_auth_token": "",
+ "room_names": [""],
+ "botname": "",
+ "unknown_command": "",
+ "no_auth_message": "",
+ "message_check_frequency_seconds": ,
+ "scripts":
+  [{"name": "",
+    "path": "",
+    "permitted_users": [""],
+    "help_text": ""},
+  ]
+}
