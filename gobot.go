@@ -19,50 +19,49 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"time"
 	"github.com/tbruyelle/hipchat-go/hipchat"
 	"os"
-	"regexp"
 	"os/exec"
+	"regexp"
+	"time"
 )
 
 var config struct {
-	HipchatAuthToken string `json:"hipchat_auth_token"`
-	Password string `json:"password"`
-	RoomNames []string `json:"room_names"`
-	Botname string `json:"botname"`
-	UnknownCommand string `json:"unknown_command"`
-	NoAuthMessage string `json:"no_auth_message"`
+	HipchatAuthToken      string        `json:"hipchat_auth_token"`
+	Password              string        `json:"password"`
+	RoomNames             []string      `json:"room_names"`
+	Botname               string        `json:"botname"`
+	UnknownCommand        string        `json:"unknown_command"`
+	NoAuthMessage         string        `json:"no_auth_message"`
 	MessageCheckFrequency time.Duration `json:"message_check_frequency_seconds"`
-	Scripts []struct {
-		Name string `json:"name"`
-		Path string `json:"path"`
+	Scripts               []struct {
+		Name           string   `json:"name"`
+		Path           string   `json:"path"`
 		PermittedUsers []string `json:"permitted_users"`
-		HelpText string `json:"help_text"`
+		HelpText       string   `json:"help_text"`
 	} `json:"scripts"`
 }
 
-
 func main() {
 
-  	configFile, err := os.Open("config.json")
+	configFile, err := os.Open("config.json")
 
-    if err != nil {
-        fmt.Printf("opening config file %q\n", err.Error())
+	if err != nil {
+		fmt.Printf("opening config file %q\n", err.Error())
 
-        return
-    }
+		return
+	}
 
-    jsonParser := json.NewDecoder(configFile)
+	jsonParser := json.NewDecoder(configFile)
 
-    if err = jsonParser.Decode(&config); err != nil {
-        fmt.Printf("parsing config file %q\n", err.Error())
+	if err = jsonParser.Decode(&config); err != nil {
+		fmt.Printf("parsing config file %q\n", err.Error())
 
-        return
-    }
+		return
+	}
 
-    re := regexp.MustCompile("(@.*?)\\s")
-    re_name := regexp.MustCompile("\\*name\\*")
+	re := regexp.MustCompile("(@.*?)\\s")
+	re_name := regexp.MustCompile("\\*name\\*")
 	client := hipchat.NewClient(config.HipchatAuthToken)
 	last_message_recieved := time.Now().Format("2006-01-02T15:04:05Z07:00")
 
@@ -83,7 +82,7 @@ func main() {
 
 			history, response, error :=
 				client.Room.History(room, &hipchat.HistoryRequest{Date: last_message_recieved,
-					                                              Timezone: "UTC"})
+					Timezone: "UTC"})
 
 			if error != nil {
 				fmt.Printf("Error during room history req %q\n", error)
@@ -97,11 +96,11 @@ func main() {
 				message_directed_at_bot := false
 
 				switch m.From.(type) {
-					case string:
-						from = m.From.(string)
-					case map[string]interface{}:
-						f := m.From.(map[string]interface{})
-						from = f["mention_name"].(string)
+				case string:
+					from = m.From.(string)
+				case map[string]interface{}:
+					f := m.From.(map[string]interface{})
+					from = f["mention_name"].(string)
 				}
 
 				if m.Mentions != nil {
@@ -144,8 +143,8 @@ func main() {
 							if error != nil {
 								client.Room.Notification(room,
 									&hipchat.NotificationRequest{Color: "red",
-									                             Message: "@" + from + " " + command + " failed to execute.",
-								                                 Notify: true, MessageFormat: "text"})
+										Message: "@" + from + " " + command + " failed to execute.",
+										Notify:  true, MessageFormat: "text"})
 								message = "@" + from + " " + command + " failed to execute."
 							}
 
@@ -153,14 +152,14 @@ func main() {
 							message := ""
 
 							if len(script_to_execute) > 0 {
-								message = re_name.ReplaceAllString(config.NoAuthMessage, "@" + from)
+								message = re_name.ReplaceAllString(config.NoAuthMessage, "@"+from)
 							} else {
-								message = re_name.ReplaceAllString(config.UnknownCommand, "@" + from)
+								message = re_name.ReplaceAllString(config.UnknownCommand, "@"+from)
 							}
 
 							client.Room.Notification(room,
 								&hipchat.NotificationRequest{Color: "red", Message: message,
-								                             Notify: true, MessageFormat: "text"})
+									Notify: true, MessageFormat: "text"})
 						}
 					}
 				}
