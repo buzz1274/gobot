@@ -35,6 +35,7 @@ var config struct {
 	Botname               string        `json:"botname"`
 	UnknownCommand        string        `json:"unknown_command"`
 	NoAuthMessage         string        `json:"no_auth_message"`
+	StartMessage          string        `json:"start_message"`
 	MessageCheckFrequency time.Duration `json:"message_check_frequency_seconds"`
 	Scripts               []struct {
 		Name           string   `json:"name"`
@@ -67,7 +68,9 @@ func main() {
 	client := hipchat.NewClient(config.HipchatAuthToken)
 	last_message_recieved := time.Now()
 
-	fmt.Println("Gobot running ctrl+c exits")
+	client.Room.Notification(config.RoomNames[0],
+		&hipchat.NotificationRequest{Message: config.StartMessage,
+		                             Notify: false, MessageFormat: "text"})
 
 	for {
 
@@ -106,7 +109,9 @@ func main() {
 						}
 					}
 
-					if message_directed_at_bot {
+					fmt.Println(from)
+
+					if message_directed_at_bot && config.Botname != strings.Replace(from, " ", "", -1) {
 						command := strings.Fields(re.ReplaceAllString(m.Message, ""))
 						script_to_execute := ""
 						user_has_permissions := false
@@ -144,7 +149,6 @@ func main() {
 										&hipchat.NotificationRequest{Color: "red",
 											Message: "@" + from + " " + command[0] + " failed to execute.",
 											Notify:  true, MessageFormat: "text"})
-									message = "@" + from + " " + command[0] + " failed to execute."
 								}
 
 							} else {

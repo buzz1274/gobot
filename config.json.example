@@ -3,6 +3,7 @@
  "botname": "",
  "unknown_command": "",
  "no_auth_message": "",
+ "start_message": "",
  "message_check_frequency_seconds": ,
  "scripts":
   [{"name": "",
