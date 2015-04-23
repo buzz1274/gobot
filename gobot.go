@@ -65,12 +65,13 @@ func main() {
 
 	re := regexp.MustCompile("(@.*?)\\s")
 	re_name := regexp.MustCompile("\\*name\\*")
+	clean_command := regexp.MustCompile("[^A-Za-z0-9]+")
 	client := hipchat.NewClient(config.HipchatAuthToken)
 	last_message_recieved := time.Now()
 
 	client.Room.Notification(config.RoomNames[0],
 		&hipchat.NotificationRequest{Message: config.StartMessage,
-		                             Notify: false, MessageFormat: "text"})
+			Notify: false, MessageFormat: "text"})
 
 	for {
 
@@ -109,10 +110,8 @@ func main() {
 						}
 					}
 
-					fmt.Println(from)
-
 					if message_directed_at_bot && config.Botname != strings.Replace(from, " ", "", -1) {
-						command := strings.Fields(re.ReplaceAllString(m.Message, ""))
+						command := strings.Fields(clean_command.ReplaceAllString(re.ReplaceAllString(m.Message, ""), " "))
 						script_to_execute := ""
 						user_has_permissions := false
 
@@ -142,13 +141,12 @@ func main() {
 								cmd := exec.Command(script_to_execute, command...)
 								error := cmd.Start()
 
-								//output script error into hipchat
-
 								if error != nil {
 									client.Room.Notification(room,
 										&hipchat.NotificationRequest{Color: "red",
-											Message: "@" + from + " " + command[0] + " failed to execute.",
-											Notify:  true, MessageFormat: "text"})
+											Message: "@" + from + " " + script_to_execute + " " +
+												" failed to execute(" + error.Error() + ").",
+											Notify: true, MessageFormat: "text"})
 								}
 
 							} else {
