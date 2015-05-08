@@ -65,7 +65,7 @@ func main() {
 
 	re := regexp.MustCompile("(@.*?)\\s")
 	re_name := regexp.MustCompile("\\*name\\*")
-	clean_command := regexp.MustCompile("[^A-Za-z0-9]+")
+	clean_command := regexp.MustCompile("[^A-Za-z0-9_]+")
 	client := hipchat.NewClient(config.HipchatAuthToken)
 	last_message_recieved := time.Now()
 
